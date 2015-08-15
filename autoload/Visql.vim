@@ -18,7 +18,7 @@ def get_buf_content():
 
     lines = vim.current.buffer
 
-    return ' '.join(lines)
+    return '\n'.join(lines)
 
 def get_visual_selection():
     # This codes are from https://github.com/JarrodCTaylor/vim-plugin-starter-kit/wiki/Interactions-with-the-buffer
@@ -43,6 +43,11 @@ def run_sql():
 
     sql = get_buf_content()
 
+    description, rows = run_sql_at_db(sql)
+
+    if rows is None:
+        return
+    
     # create new window
     vim.command(":sp");
     
@@ -51,43 +56,70 @@ def run_sql():
     # go to the newly created window (second window)
     vim.command(":wincmd j")
     vim.command("e " + str(run_cnt) + ".txt")
-    vim.command("set modifiable")
+    
+    # Header 출력
+    header = "|"
+    seperator = "|"
+    
+    col_lens = []
+
+    for col_info in description:
+        # col_info[0] = column name
+        # col_info[1] = ??
+        # col_info[2] = max data size
+
+        col_name = col_info[0]
+        max_data_size = col_info[2]
+
+        col_len = max(len(col_name), max_data_size)
+
+        col_lens.append(col_len)
+        header += (" %-" + str(col_len) + "s |") % (col_name)
+        seperator += "" + "-" * (col_len + 2) + "|"
+
+    vim.current.buffer[0] = header
+    vim.current.buffer.append(seperator)
+
+    for row in rows:
+        line = "|"
+        cnt = 0
+        for col in row:
+            line += (" %" + str(col_lens[cnt]) + "s |") % (str(col))
+            cnt += 1
+
+        vim.current.buffer.append(line.replace('\n', '\\n'))
+    
+    vim.command("set nomodifiable")
 
     run_cnt += 1
 
-    run_sql_at_db(sql)
-
 def run_sql_at_db(sql):
     
-    import _mysql
+    import MySQLdb
     import time
-    import vim
     
     global db_conn
 
     # 기 연결된 connection이 끊긴 것도 확인해야 함
-    # if (db_conn is None):
-    db_conn = _mysql.connect(host='127.0.0.1',
-                          port=3306,
-                          user='root',
-                          passwd='',
-                          db = 'jsheo')
-    
+    try:
+        if (db_conn is None):
+            db_conn = MySQLdb.connect(host='127.0.0.1',
+                                  port=3306,
+                                  user='root',
+                                  passwd='',
+                                  db = 'jsheo')
+        
+        # db_conn.get_conn().ping(True)
 
-    db_conn.query(sql)
+        cursor = db_conn.cursor()
 
-    rs = db_conn.use_result()
-    
-    while True:
-        row = rs.fetch_row(how=1)
-        if not row: break
+        cursor.execute(sql)
+        return  [cursor.description, cursor.fetchall()]
 
-        vim.current.buffer.append(row[0]['a'].replace('\n', '\\n'))
-    print "Done"
-    
-    del vim.current.buffer[0] # 첫 줄 삭제
-    vim.command("set nomodifiable")
-
+    except MySQLdb.Error, e:
+        print "Error %d: %s" % (e.args[0], e.args[1])
+        return None
+   
 def format_sql(sql):
     import sqlparse
     import vim
