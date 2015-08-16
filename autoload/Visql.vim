@@ -1,3 +1,10 @@
+" below 2 lines are excerpted from
+" [clighter](https://github.com/bbchung/clighter)
+
+let s:script_folder_path = escape( expand( '<sfile>:p:h' ), '\' )
+exe 'python sys.path = sys.path + ["' . s:script_folder_path . '"]'
+exe 'python config_path = "' . s:script_folder_path . '/config"'
+
 function! VRunSQL() range
 
     py run_sql()
@@ -12,6 +19,8 @@ function! VFormatSQL() range
 endfunction " end of FormatSQL()
 
 python << endPython
+
+import db_helper
 
 def get_buf_content():
     import vim
@@ -99,10 +108,15 @@ def run_sql_at_db(sql):
     import time
     
     global db_conn
+    global config_path
 
     # 기 연결된 connection이 끊긴 것도 확인해야 함
     try:
         if (db_conn is None):
+            conn_infos = db_helper.get_db_conn_infos(config_path)
+            for conn_info in conn_infos:
+                print conn_info.connection_name
+
             db_conn = MySQLdb.connect(host='127.0.0.1',
                                   port=3306,
                                   user='root',
