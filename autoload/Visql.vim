@@ -3,27 +3,106 @@
 
 let s:script_folder_path = escape( expand( '<sfile>:p:h' ), '\' )
 exe 'python sys.path = sys.path + ["' . s:script_folder_path . '"]'
-exe 'python config_path = "' . s:script_folder_path . '/config"'
+exe 'python config_path = "' . s:script_folder_path . '/db_connection.conf"'
+
+function! Vconnect()
+    py connect_to_db()
+endfunction
+
+function! Vclose()
+    py close_db_connection()
+endfunction
 
 function! VRunSQL() range
-
     py run_sql()
-
 endfunction " end of RunSQL()
 
 function! VFormatSQL() range
-
     py sql = get_buf_content()
     py format_sql(sql)
-
 endfunction " end of FormatSQL()
 
 python << endPython
 
 import db_helper
+import vim
+import MySQLdb
+import time
+    
+db_conn = None
+run_cnt = 1
+connection_offset = None
+conn_infos = None
+
+def connect_to_db():
+
+    global db_conn
+    global conn_infos
+    
+    if confirm_to_close_if_already_connected() == False:
+        return
+    
+    conn_infos = db_helper.get_db_conn_infos(config_path)
+    cnt = 1
+    for conn_info in conn_infos:
+        print "{0}: [{1}] {2}@{3}:{4}".format(cnt, conn_info.connection_name, conn_info.user, conn_info.host, conn_info.port)
+        cnt += 1
+    
+    cnt -= 1
+    vim.command("echohl WildMenu")
+    
+    input = 0
+    
+    while input <= 0 or input > cnt:
+        input = vim.eval('input("Which one do you want to connnect [1~{0}]: ", "")'.format(cnt))
+        
+        try:
+            input = int(input)
+        except ValueError:
+            input = 0 
+
+        if input <= 0 or input > cnt:
+            if cnt == 1:
+                print " please insert 1"
+            else:
+                print " please insert between 1 and {0}".format(cnt)
+
+    vim.command("echohl None")
+
+def confirm_to_close_if_already_connected():
+    global connection_offset
+    global conn_infos
+    global db_conn
+
+    if db_conn is None:
+        return
+    
+    conn_info = conn_infos[connection_offset]
+    
+    print "Already connected at [{0}] {1}@{2}:{3}".format(conn_info.description, conn_info.user, conn_info.host, conn_info.port)
+
+    input = vim.eval('confirm("&Close and Open new connection\n&Stay there", 1)')
+    
+    if input == 1:
+        return True
+    else:
+        return False
+
+def close_db_connection():
+    global db_conn
+
+    if db_conn is None:
+        print "Not yet connected"
+        return
+
+    db_conn.close()
+
+    print "Closed"
+
+    db_conn = None
+    db_connection_offset = None
 
 def get_buf_content():
-    import vim
 
     lines = vim.current.buffer
 
@@ -31,7 +110,6 @@ def get_buf_content():
 
 def get_visual_selection():
     # This codes are from https://github.com/JarrodCTaylor/vim-plugin-starter-kit/wiki/Interactions-with-the-buffer
-    import vim
     buf = vim.current.buffer
     (starting_line_num, col1) = buf.mark('<')
     (ending_line_num, col2) = buf.mark('>')
@@ -42,11 +120,7 @@ def get_visual_selection():
     # return lines, starting_line_num, ending_line_num, col1, col2
     return "\n".join(lines)
 
-db_conn = None
-run_cnt = 1
-
 def run_sql():
-    import vim
 
     global run_cnt
 
@@ -104,19 +178,13 @@ def run_sql():
 
 def run_sql_at_db(sql):
     
-    import MySQLdb
-    import time
-    
     global db_conn
     global config_path
+    global conn_infos
 
     # 기 연결된 connection이 끊긴 것도 확인해야 함
     try:
         if (db_conn is None):
-            conn_infos = db_helper.get_db_conn_infos(config_path)
-            for conn_info in conn_infos:
-                print conn_info.connection_name
-
             db_conn = MySQLdb.connect(host='127.0.0.1',
                                   port=3306,
                                   user='root',
@@ -147,5 +215,7 @@ def format_sql(sql):
 
 endPython
 
-command! VRS call VRunSQL()
-command! VFS call VFormatSQL()
+command! Vconnect call Vconnect()
+command! Vclose call Vclose()
+command! Vformat call VFormatSQL()
+command! Vrun call VRunSQL()
