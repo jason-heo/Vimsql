@@ -5,6 +5,7 @@ port = 3306
 user = root
 password = 
 db_name = 
+connect_timeout = 0
 
 [your_server]
 
@@ -13,3 +14,4 @@ port = 3306
 user = root
 password = 
 db_name = 
+connect_timeout = 0

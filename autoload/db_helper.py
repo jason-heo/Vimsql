@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import MySQLdb
 import ConfigParser
 import os.path
 
@@ -11,7 +12,7 @@ class DBConnInfo:
     password = ""
     db_name = ""
 
-    var_names = ["host", "port", "user", "password", "db_name"]
+    var_names = ["host", "port", "user", "password", "db_name", "connect_timeout"]
 
     def __init__(self, section_name, config):
         for var_name in self.var_names:
@@ -22,6 +23,25 @@ class DBConnInfo:
             except ConfigParser.NoOptionError, e:
                 print ("config parse error: '%s' not found in [%s]") % (var_name, section_name)
                 return None
+        
+        # convert string into integer: Ex) "3306" => 3306
+        try:
+            self.port = int(self.port)
+        except ValueError:
+            print "Error: {0}.port {1} is not integer".format(self.connection_name, self.port)
+
+            return None
+        
+        if (self.connect_timeout == ""):
+            self.connect_timeout = 0
+        else:
+        # convert string into integer
+            try:
+                self.connect_timeout = int(self.connect_timeout)
+            except ValueError:
+                print "Error: {0}.port {1} is not integer".format(self.connection_name, self.connect_timeout)
+
+            return None
 
     def __str__(self):
         return str(__repr__())
@@ -57,3 +77,26 @@ def get_db_conn_infos(conf_path):
         ret_val.append(conn_info)
 
     return ret_val
+
+def run_sql_at_db(sql, db_conn):
+
+    try:
+        if (db_conn is None):
+            print "Not connected, run :Vconnect first"
+            return
+
+        db_conn.ping(True)
+
+        cursor = db_conn.cursor()
+        
+        try:
+            cursor.execute(sql)
+        except MySQLdb.Error, e:
+            return [None, e]
+
+        return  [cursor.description, cursor.fetchall()]
+
+    except MySQLdb.Error, e:
+        print "Error %d: %s" % (e.args[0], e.args[1])
+        return None
+
