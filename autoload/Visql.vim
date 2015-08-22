@@ -5,22 +5,26 @@ let s:script_folder_path = escape( expand( '<sfile>:p:h' ), '\' )
 exe 'python sys.path = sys.path + ["' . s:script_folder_path . '"]'
 exe 'python config_path = "' . s:script_folder_path . '/db_connection.conf"'
 
-function! Vconnect()
+function! VConnect()
     py connect_to_db()
 endfunction
 
-function! Vclose()
-    py close_db_connection()
+function! VCloseConnection()
+    py close_connection()
 endfunction
+
+function! VFormatSQL() range
+    py sql = get_vim_buffer_content()
+    py format_sql(sql)
+endfunction " end of FormatSQL()
 
 function! VRunSQL() range
     py run_sql()
 endfunction " end of RunSQL()
 
-function! VFormatSQL() range
-    py sql = get_buf_content()
-    py format_sql(sql)
-endfunction " end of FormatSQL()
+function! VCloseResultWindow()
+    py close_result_window()
+endfunction
 
 python << endPython
 
@@ -28,11 +32,25 @@ import db_helper
 import vim
 import MySQLdb
 import time
+import threading
     
 db_conn = None
 run_cnt = 1
 connection_offset = None
 conn_infos = None
+
+class RunnerThread(threading.Thread):
+    def __init__(self, name, db_conn, sql, result_container):
+        threading.Thread.__init__(self)
+        self.name = name
+        self.db_conn = db_conn
+        self.sql = sql
+        self.result_container = result_container
+
+    def run(self):
+        (description, rows) = db_helper.run_sql_at_db(self.sql, self.db_conn)
+        self.result_container.append(description)
+        self.result_container.append(rows)
 
 def connect_to_db():
 
@@ -51,8 +69,6 @@ def connect_to_db():
     connection_offset = get_connection_offset()
     conn_info = conn_infos[connection_offset]
     
-    print " \nTrying to connect...."
-
     try:
         db_conn = MySQLdb.connect(host    = conn_info.host,
                                   port    = int(conn_info.port),
@@ -72,15 +88,15 @@ def confirm_to_close_if_already_connected():
     global connection_offset
     global conn_infos
     global db_conn
-
+    
     if db_conn is None:
         return
     
     conn_info = conn_infos[connection_offset]
     
-    print_hl_msg("Already connected at [{0}] {1}@{2}:{3}".format(conn_info.description, conn_info.user, conn_info.host, conn_info.port))
+    print_hl_msg("Already connected at [{0}] {1}@{2}:{3}".format(conn_info.connection_name, conn_info.user, conn_info.host, conn_info.port))
 
-    input = vim.eval('confirm("&Close and Open new connection\n&Stay there", 1)')
+    input = vim.eval('confirm("&Close and Open new connection\n&Stay there", 1, "fff", 2)')
     
     if input == 1:
         return True
@@ -115,7 +131,7 @@ def get_connection_offset():
 
     return user_input - 1 
 
-def close_db_connection():
+def close_connection():
     global db_conn
 
     if db_conn is None:
@@ -129,7 +145,7 @@ def close_db_connection():
     db_conn = None
     db_connection_offset = None
 
-def get_buf_content():
+def get_vim_buffer_content():
 
     lines = vim.current.buffer
 
@@ -148,39 +164,79 @@ def get_visual_selection():
     return "\n".join(lines)
 
 def run_sql():
+    import sqlparse
 
     global run_cnt
     global db_conn
+    
+    window_idx = get_window_idx()
+
+    if (window_idx != 0):
+        print_hl_msg("Error: Executed on Result Window. SELECT only can be executed from Editor Window (first window)")
+        return
 
     if (db_conn is None):
         print_hl_msg("Not connected. run :Vconnect before run")
         return None
 
-    sql = get_buf_content()
+    sql = get_vim_buffer_content()
+
+    if (len(sqlparse.split(sql)) > 1):
+        print_hl_msg("Currently, only 1 SELECT query supported")
+        return
+
+    tokens = sqlparse.parse(sql)
+    if (str(tokens[0].get_type()) != "SELECT"):
+        print_hl_msg("Currently, only SELECT query supported")
+        return
     
     print "Running SQL..."
-
-    (description, rows) = db_helper.run_sql_at_db(sql, db_conn)
-
-    if (description is None):
-    # An error occurred during execution
-    # rows has an MySQL.Error
-        print_hl_msg("Error ({0}): {1}".format(rows.args[0], rows.args[1]))
-        return
-
-    if rows is None:
-        return
     
-    # create new window
+    arr = []
+    runner_thread = RunnerThread("runner", db_conn, sql, arr)
+
+    runner_thread.start()
+    runner_thread.join()
+
+
+    description = arr[0]
+    rows = arr[1]
+    
+    print_result_on_new_window(description, rows)
+
+    run_cnt += 1
+
+def create_new_result_window():
     vim.command(":sp");
     
     num_of_windows = len(vim.windows)
 
-    # go to the newly created window (second window)
+    # go to the newly created window
     vim.command(":wincmd j")
     vim.command("e " + str(run_cnt) + ".txt")
 
     vim.command("set modifiable")
+
+def check_finish(arr, cnt):
+    vim.current.buffer.append(str(cnt))
+    if (len(arr) == 2):
+        return True
+    else:
+        return False
+
+def print_result_on_new_window(description, rows):
+
+    if (description is None):
+    # An error occurred during execution
+    # in this case, rows has an MySQL.Error
+        print_hl_msg("Error ({0}): {1}".format(rows.args[0], rows.args[1]))
+        return
+
+    if rows is None:
+        print_hl_msg("Error: rows is None")
+        return
+    
+    create_new_result_window()
     
     # Header 출력
     header = "|"
@@ -218,12 +274,9 @@ def run_sql():
     
     vim.command("set nomodifiable")
     vim.command(":wincmd k") # go to editor window
-
-    run_cnt += 1
-   
+    
 def format_sql(sql):
     import sqlparse
-    import vim
     
     arr = ['a', 'b']
     formatted = sqlparse.format(sql, reindent = True, keyword_case = 'upper')
@@ -232,14 +285,40 @@ def format_sql(sql):
     vim.current.buffer.append(formatted.split("\n"))
     del vim.current.buffer[0] # 젤 첫 줄에 empty line 삭제
 
+def close_result_window():
+    window_idx = get_window_idx()
+
+    if (window_idx == 0):
+    # Editor Window에서 close result 명령은 첫 번째 Result Window 종료
+        vim.command(":wincmd j")
+        vim.command(":q!")
+        vim.command(":wincmd k")
+    else:
+        vim.command(":q!")
+
 def print_hl_msg(msg):
     vim.command("echohl WildMenu")
     vim.command('echo "{0}"'.format(str(msg).replace('"', "'")))
     vim.command("echohl None")
 
+def get_window_idx():
+    current_window = vim.current.window
+
+    window_idx = 0
+    for w in vim.windows:
+        if w == current_window:
+            break;
+        window_idx += 1
+    return window_idx
+
 endPython
 
-command! Vconnect call Vconnect()
-command! Vclose call Vclose()
-command! Vformat call VFormatSQL()
-command! Vrun call VRunSQL()
+command! VConnect call VConnect()
+command! VCloseConnection call VCloseConnection()
+command! VFormat call VFormatSQL()
+command! VRunSQL call VRunSQL()
+command! VCloseResultWindow call VCloseResultWindow()
+
+command! VQuit qa!
+
+:VConnect
