@@ -92,9 +92,10 @@ def run_sql_at_db(sql, db_conn):
         try:
             cursor.execute(sql)
         except MySQLdb.Error, e:
-            return [None, e]
-
-        return  [cursor.description, cursor.fetchall()]
+            print "Error %d: %s" % (e.args[0], e.args[1])
+            return None
+        
+        return cursor
 
     except MySQLdb.Error, e:
         print "Error %d: %s" % (e.args[0], e.args[1])

@@ -33,6 +33,7 @@ import vim
 import MySQLdb
 import time
 import threading
+import os
     
 db_conn = None
 run_cnt = 1
@@ -40,17 +41,17 @@ connection_offset = None
 conn_infos = None
 
 class RunnerThread(threading.Thread):
-    def __init__(self, name, db_conn, sql, result_container):
+    def __init__(self, name, db_conn, sql):
         threading.Thread.__init__(self)
         self.name = name
         self.db_conn = db_conn
         self.sql = sql
-        self.result_container = result_container
 
     def run(self):
-        (description, rows) = db_helper.run_sql_at_db(self.sql, self.db_conn)
-        self.result_container.append(description)
-        self.result_container.append(rows)
+        start = time.time();
+        cursor = db_helper.run_sql_at_db(self.sql, self.db_conn)
+        elapsed_time = time.time() - start
+        print_result_on_new_window(self.sql, elapsed_time, cursor)
 
 def connect_to_db():
 
@@ -76,8 +77,10 @@ def connect_to_db():
                                   passwd  = conn_info.password,
                                   db      = conn_info.db_name,
                                   connect_timeout = conn_info.connect_timeout)
-
-        print_hl_msg("Connected ...")
+        
+        cur = db_conn.cursor()
+        cur.execute("SET autocommit = ON")
+        print_hl_msg("\nConnected ...")
 
     except MySQLdb.Error, e:
         print_hl_msg("Can't connect: Error %d: %s" % (e.args[0], e.args[1]))
@@ -176,46 +179,42 @@ def run_sql():
         return
 
     if (db_conn is None):
-        print_hl_msg("Not connected. run :Vconnect before run")
-        return None
+        connect_to_db()
 
     sql = get_vim_buffer_content()
 
     if (len(sqlparse.split(sql)) > 1):
-        print_hl_msg("Currently, only 1 SELECT query supported")
+        print_hl_msg("Sorry. only 1 SELECT query supported")
         return
 
-    tokens = sqlparse.parse(sql)
-    if (str(tokens[0].get_type()) != "SELECT"):
-        print_hl_msg("Currently, only SELECT query supported")
-        return
-    
     print "Running SQL..."
     
-    arr = []
-    runner_thread = RunnerThread("runner", db_conn, sql, arr)
+    runner_thread = RunnerThread("runner", db_conn, sql)
 
     runner_thread.start()
     runner_thread.join()
-
-
-    description = arr[0]
-    rows = arr[1]
-    
-    print_result_on_new_window(description, rows)
 
     run_cnt += 1
 
 def create_new_result_window():
     vim.command(":sp");
     
-    num_of_windows = len(vim.windows)
+    move_to_result_window()
+    
+    result_file_path = "/tmp/" + str(os.getpid()) + ".sql.result"
+    vim.command("e " + result_file_path)
+    vim.current.buffer[0] = "File path: " + result_file_path
+    vim.current.buffer.append("")
 
-    # go to the newly created window
+    move_to_editor_window()
+
+def move_to_editor_window():
+    # vim.command("set nomodifiable") # Result Window를 readonly로
+    vim.command(":wincmd k")
+
+def move_to_result_window():
     vim.command(":wincmd j")
-    vim.command("e " + str(run_cnt) + ".txt")
-
-    vim.command("set modifiable")
+    #vim.command("set modifiable")
 
 def check_finish(arr, cnt):
     vim.current.buffer.append(str(cnt))
@@ -224,7 +223,43 @@ def check_finish(arr, cnt):
     else:
         return False
 
-def print_result_on_new_window(description, rows):
+def print_result_on_new_window(sql, elapsed_time, cursor):
+    
+    if len(vim.windows) == 1:
+    # Only Editor windows exists. let's create the Result Window
+        create_new_result_window()
+
+    move_to_result_window()
+    
+    import datetime
+    
+    vim.current.buffer.append("Date:  " + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+    vim.current.buffer.append("Query: " + sql)
+
+    if (cursor.rowcount > -1):
+    # delete, insert, update 같은 DML
+    # SELECT는 무조건 rows.rowcount = -1이다.
+        print_non_select_output(cursor)
+    else:
+        print_select_output(cursor)
+
+    vim.current.buffer.append("(%5.4f sec.)" % elapsed_time)
+    vim.current.buffer.append("")
+
+    vim.command("normal G") # move to end of line
+
+    print "Execution Ended"
+    
+    #move_to_editor_window()
+
+def print_non_select_output(cursor):
+    vim.current.buffer.append("%d rows affected" % cursor.rowcount)
+
+def print_select_output(cursor):
+    vim.current.buffer.append("SELECT Result:")
+    
+    description = cursor.description
+    rows = cursor.fetchall()
 
     if (description is None):
     # An error occurred during execution
@@ -236,8 +271,7 @@ def print_result_on_new_window(description, rows):
         print_hl_msg("Error: rows is None")
         return
     
-    create_new_result_window()
-    
+
     # Header 출력
     header = "|"
     seperator = "|"
@@ -259,7 +293,7 @@ def print_result_on_new_window(description, rows):
         header += (" %-" + str(col_len) + "s |") % (col_name)
         seperator += "" + "-" * (col_len + 2) + "|"
 
-    vim.current.buffer[0] = header
+    vim.current.buffer.append(header)
     vim.current.buffer.append(seperator)
     
     # print Data
@@ -272,9 +306,7 @@ def print_result_on_new_window(description, rows):
 
         vim.current.buffer.append(line.replace('\n', '\\n'))
     
-    vim.command("set nomodifiable")
-    vim.command(":wincmd k") # go to editor window
-    
+
 def format_sql(sql):
     import sqlparse
     
@@ -321,4 +353,4 @@ command! VCloseResultWindow call VCloseResultWindow()
 
 command! VQuit qa!
 
-:VConnect
+":VConnect
