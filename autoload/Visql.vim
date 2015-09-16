@@ -18,11 +18,15 @@ function! VFormatSQL() range
     py format_sql(sql)
 endfunction " end of FormatSQL()
 
-function! VRunSQL() range
+function! VRunBatch() range
     py run_sql()
 endfunction " end of RunSQL()
 
 function! VCloseResultWindow()
+    py close_result_window()
+endfunction
+
+function! VMoveToEditorWindow()
     py close_result_window()
 endfunction
 
@@ -41,18 +45,36 @@ connection_offset = None
 conn_infos = None
 
 class RunnerThread(threading.Thread):
-    def __init__(self, name, db_conn, sql):
+    def __init__(self, name, db_conn):
         threading.Thread.__init__(self)
         self.name = name
         self.db_conn = db_conn
-        self.sql = sql
 
     def run(self):
-        start = time.time();
-        cursor = db_helper.run_sql_at_db(self.sql, self.db_conn)
-        elapsed_time = time.time() - start
-        print_result_on_new_window(self.sql, elapsed_time, cursor)
+        import sqlparse; 
+        print "Running SQL..."
 
+        buffer = get_vim_buffer_content()
+        
+        sqls = sqlparse.split(buffer);
+        
+        start = time.time();
+        self.run_helper(sqls)
+        elapsed_time = time.time() - start
+
+        print "Done.... in %5.4f sec." % (elapsed_time)
+    
+    def run_helper(self, sqls):
+        for sql in sqls:
+            start = time.time();
+            cursor = db_helper.run_sql_at_db(sql, self.db_conn)
+            if (cursor == None):
+                if (len(sqls) > 1):
+                    print_hl_msg("Skip remained queries")
+                return
+
+            elapsed_time = time.time() - start
+            print_result_on_new_window(sql, elapsed_time, cursor)
 def connect_to_db():
 
     global db_conn
@@ -181,15 +203,7 @@ def run_sql():
     if (db_conn is None):
         connect_to_db()
 
-    sql = get_vim_buffer_content()
-
-    if (len(sqlparse.split(sql)) > 1):
-        print_hl_msg("Sorry. only 1 SELECT query supported")
-        return
-
-    print "Running SQL..."
-    
-    runner_thread = RunnerThread("runner", db_conn, sql)
+    runner_thread = RunnerThread("runner", db_conn)
 
     runner_thread.start()
     runner_thread.join()
@@ -232,25 +246,25 @@ def print_result_on_new_window(sql, elapsed_time, cursor):
     move_to_result_window()
     
     import datetime
+    import sqlparse
     
     vim.current.buffer.append("Date:  " + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
     vim.current.buffer.append("Query: " + sql)
+    
+    tokens = sqlparse.parse(sql)
 
-    if (cursor.rowcount > -1):
-    # delete, insert, update 같은 DML
-    # SELECT는 무조건 rows.rowcount = -1이다.
-        print_non_select_output(cursor)
-    else:
+    if (str(tokens[0].get_type()) == "SELECT"):
         print_select_output(cursor)
+    else:
+        print_non_select_output(cursor)
 
     vim.current.buffer.append("(%5.4f sec.)" % elapsed_time)
+    vim.current.buffer.append("")
     vim.current.buffer.append("")
 
     vim.command("normal G") # move to end of line
 
-    print "Execution Ended"
-    
-    #move_to_editor_window()
+    move_to_editor_window()
 
 def print_non_select_output(cursor):
     vim.current.buffer.append("%d rows affected" % cursor.rowcount)
@@ -348,7 +362,7 @@ endPython
 command! VConnect call VConnect()
 command! VCloseConnection call VCloseConnection()
 command! VFormat call VFormatSQL()
-command! VRunSQL call VRunSQL()
+command! VRunBatch call VRunBatch()
 command! VCloseResultWindow call VCloseResultWindow()
 
 command! VQuit qa!
