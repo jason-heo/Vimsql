@@ -1,34 +1,6 @@
-" below 2 lines are excerpted from
-" [clighter](https://github.com/bbchung/clighter)
-
 let s:script_folder_path = escape( expand( '<sfile>:p:h' ), '\' )
 exe 'python sys.path = sys.path + ["' . s:script_folder_path . '"]'
 exe 'python config_path = "' . s:script_folder_path . '/db_connection.conf"'
-
-function! VConnect()
-    py connect_to_db()
-endfunction
-
-function! VCloseConnection()
-    py close_connection()
-endfunction
-
-function! VFormatSQL() range
-    py sql = get_vim_buffer_content()
-    py format_sql(sql)
-endfunction " end of FormatSQL()
-
-function! VRunBatch() range
-    py run_sql()
-endfunction " end of RunSQL()
-
-function! VCloseResultWindow()
-    py close_result_window()
-endfunction
-
-function! VMoveToEditorWindow()
-    py close_result_window()
-endfunction
 
 python << endPython
 
@@ -44,11 +16,14 @@ run_cnt = 1
 connection_offset = None
 conn_infos = None
 
-class RunnerThread(threading.Thread):
-    def __init__(self, name, db_conn):
+class SQLRunner(threading.Thread):
+    counter = 1
+
+    def __init__(self, name, db_conn, output_mode):
         threading.Thread.__init__(self)
         self.name = name
         self.db_conn = db_conn
+        self.output_mode = output_mode
 
     def run(self):
         import sqlparse; 
@@ -59,22 +34,128 @@ class RunnerThread(threading.Thread):
         sqls = sqlparse.split(buffer);
         
         start = time.time();
-        self.run_helper(sqls)
+        self.run_and_print(sqls, self.output_mode)
         elapsed_time = time.time() - start
 
         print "Done.... in %5.4f sec." % (elapsed_time)
     
-    def run_helper(self, sqls):
+    def run_and_print(self, sqls, output_mode):
+        if (output_mode == "append"):
+            self.create_result_window(":sp")
+        
+        cnt = 1
         for sql in sqls:
             start = time.time();
             cursor = db_helper.run_sql_at_db(sql, self.db_conn)
+
+            # TODO: error msg를 전달받아서 result window에 출력해야할 듯
             if (cursor == None):
                 if (len(sqls) > 1):
                     print_hl_msg("Skip remained queries")
                 return
 
             elapsed_time = time.time() - start
-            print_result_on_new_window(sql, elapsed_time, cursor)
+
+            
+            if (output_mode == "horizontal"):
+                self.create_result_window(":sp")
+            elif (output_mode == "vertical"):
+                self.create_result_window(":vs")
+
+            self.print_sql_result(cnt, sql, elapsed_time, cursor)
+            cnt += 1
+    
+    def create_result_window(self, win_command):
+        go_to_last_window()
+        vim.command(win_command)
+        self.open_result_file()
+
+    def open_result_file(self):
+        go_to_last_window()
+        
+        SQLRunner.counter += 1
+        result_file_path = "/tmp/" + str(os.getpid()) + ".%d.sql.result" % SQLRunner.counter
+        vim.command("e " + result_file_path)
+        vim.current.buffer[0] = "File path: " + result_file_path
+        vim.current.buffer.append("")
+
+    def print_sql_result(self, cnt, sql, elapsed_time, cursor):
+        
+        import datetime
+        import sqlparse
+        
+        vim.current.buffer.append("Date:  " + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        vim.current.buffer.append("Query %d: %s" % (cnt, sql))
+        
+        tokens = sqlparse.parse(sql)
+
+        if (str(tokens[0].get_type()) == "SELECT"):
+            self.print_select_output(cursor)
+        else:
+            self.print_non_select_output(cursor)
+
+        vim.current.buffer.append("(%5.4f sec.)" % elapsed_time)
+        vim.current.buffer.append("")
+        vim.current.buffer.append("")
+
+        vim.command("normal G") # move to end of line
+
+        #go_to_editor_window()
+
+    def print_non_select_output(self, cursor):
+        vim.current.buffer.append("%d rows affected" % cursor.rowcount)
+
+    def print_select_output(self, cursor):
+        vim.current.buffer.append("Query Output:")
+        
+        description = cursor.description
+        rows = cursor.fetchall()
+
+        if (description is None):
+        # An error occurred during execution
+        # in this case, rows has an MySQL.Error
+            print_hl_msg("Error ({0}): {1}".format(rows.args[0], rows.args[1]))
+            return
+
+        if rows is None:
+            print_hl_msg("Error: rows is None")
+            return
+        
+
+        # Header 출력
+        header = "|"
+        seperator = "|"
+        
+        col_lens = []
+
+        # Print column header
+        for col_info in description:
+            # col_info[0] = column name
+            # col_info[1] = ??
+            # col_info[2] = max data size
+
+            col_name = col_info[0]
+            max_data_size = col_info[2]
+
+            col_len = max(len(col_name), max_data_size)
+
+            col_lens.append(col_len)
+            header += (" %-" + str(col_len) + "s |") % (col_name)
+            seperator += "" + "-" * (col_len + 2) + "|"
+
+        vim.current.buffer.append(header)
+        vim.current.buffer.append(seperator)
+        
+        # print Data
+        for row in rows:
+            line = "|"
+            cnt = 0
+            for col in row:
+                line += (" %" + str(col_lens[cnt]) + "s |") % (str(col))
+                cnt += 1
+
+            vim.current.buffer.append(line.replace('\n', '\\n'))
+        
 def connect_to_db():
 
     global db_conn
@@ -141,7 +222,7 @@ def get_connection_offset():
     user_input = 0
     
     while user_input <= 0 or user_input > cnt:
-        user_input = vim.eval('input("Which one do you want to connnect [1~{0}]: ", "")'.format(cnt))
+        user_input = get_user_input('Which one do you want to connnect [1~{0}]: '.format(cnt))
         
         try:
             user_input = int(user_input)
@@ -155,6 +236,9 @@ def get_connection_offset():
                 print_hl_msg(" please insert between 1 and {0}".format(cnt))
 
     return user_input - 1 
+
+def get_user_input(msg):
+    return vim.eval('input("%s")' % msg)
 
 def close_connection():
     global db_conn
@@ -188,7 +272,7 @@ def get_visual_selection():
     # return lines, starting_line_num, ending_line_num, col1, col2
     return "\n".join(lines)
 
-def run_sql():
+def run_sql(output_mode):
     import sqlparse
 
     global run_cnt
@@ -203,32 +287,24 @@ def run_sql():
     if (db_conn is None):
         connect_to_db()
 
-    runner_thread = RunnerThread("runner", db_conn)
+    runner_thread = SQLRunner("runner", db_conn, output_mode)
 
     runner_thread.start()
     runner_thread.join()
 
     run_cnt += 1
 
-def create_new_result_window():
-    vim.command(":sp");
-    
-    move_to_result_window()
-    
-    result_file_path = "/tmp/" + str(os.getpid()) + ".sql.result"
-    vim.command("e " + result_file_path)
-    vim.current.buffer[0] = "File path: " + result_file_path
-    vim.current.buffer.append("")
+def go_to_editor_window():
+    vim.command(":wincmd t") # move to the first window
 
-    move_to_editor_window()
+def close_all_result_window():
+    go_to_last_window()
 
-def move_to_editor_window():
-    # vim.command("set nomodifiable") # Result Window를 readonly로
-    vim.command(":wincmd k")
+    while (len(vim.windows) > 1):
+        vim.command(":q!")
 
-def move_to_result_window():
-    vim.command(":wincmd j")
-    #vim.command("set modifiable")
+def go_to_last_window():
+    vim.command(':wincmd b')
 
 def check_finish(arr, cnt):
     vim.current.buffer.append(str(cnt))
@@ -236,90 +312,6 @@ def check_finish(arr, cnt):
         return True
     else:
         return False
-
-def print_result_on_new_window(sql, elapsed_time, cursor):
-    
-    if len(vim.windows) == 1:
-    # Only Editor windows exists. let's create the Result Window
-        create_new_result_window()
-
-    move_to_result_window()
-    
-    import datetime
-    import sqlparse
-    
-    vim.current.buffer.append("Date:  " + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-    vim.current.buffer.append("Query: " + sql)
-    
-    tokens = sqlparse.parse(sql)
-
-    if (str(tokens[0].get_type()) == "SELECT"):
-        print_select_output(cursor)
-    else:
-        print_non_select_output(cursor)
-
-    vim.current.buffer.append("(%5.4f sec.)" % elapsed_time)
-    vim.current.buffer.append("")
-    vim.current.buffer.append("")
-
-    vim.command("normal G") # move to end of line
-
-    move_to_editor_window()
-
-def print_non_select_output(cursor):
-    vim.current.buffer.append("%d rows affected" % cursor.rowcount)
-
-def print_select_output(cursor):
-    vim.current.buffer.append("SELECT Result:")
-    
-    description = cursor.description
-    rows = cursor.fetchall()
-
-    if (description is None):
-    # An error occurred during execution
-    # in this case, rows has an MySQL.Error
-        print_hl_msg("Error ({0}): {1}".format(rows.args[0], rows.args[1]))
-        return
-
-    if rows is None:
-        print_hl_msg("Error: rows is None")
-        return
-    
-
-    # Header 출력
-    header = "|"
-    seperator = "|"
-    
-    col_lens = []
-
-    # Print column header
-    for col_info in description:
-        # col_info[0] = column name
-        # col_info[1] = ??
-        # col_info[2] = max data size
-
-        col_name = col_info[0]
-        max_data_size = col_info[2]
-
-        col_len = max(len(col_name), max_data_size)
-
-        col_lens.append(col_len)
-        header += (" %-" + str(col_len) + "s |") % (col_name)
-        seperator += "" + "-" * (col_len + 2) + "|"
-
-    vim.current.buffer.append(header)
-    vim.current.buffer.append(seperator)
-    
-    # print Data
-    for row in rows:
-        line = "|"
-        cnt = 0
-        for col in row:
-            line += (" %" + str(col_lens[cnt]) + "s |") % (str(col))
-            cnt += 1
-
-        vim.current.buffer.append(line.replace('\n', '\\n'))
-    
 
 def format_sql(sql):
     import sqlparse
@@ -359,12 +351,43 @@ def get_window_idx():
 
 endPython
 
+function! VConnect()
+    py connect_to_db()
+endfunction
+
+function! VCloseConnection()
+    py close_connection()
+endfunction
+
+function! VFormatSQL() range
+    py sql = get_vim_buffer_content()
+    py format_sql(sql)
+endfunction " end of FormatSQL()
+
+function! VRun(output_mode) range
+    py output_mode = vim.eval("a:output_mode")
+    py run_sql(output_mode)
+endfunction " end of RunSQL()
+
+function! VCloseResultWindow()
+    py close_result_window()
+endfunction
+
+function! VGoToEditorWindow()
+    py go_to_editor_window()
+endfunction
+
+function! VCloseAllResultWindow()
+    py close_all_result_window()
+endfunction
+
 command! VConnect call VConnect()
 command! VCloseConnection call VCloseConnection()
 command! VFormat call VFormatSQL()
-command! VRunBatch call VRunBatch()
+command! VRunAppend call VRun("append")
+command! VRunHorizontal call VRun("horizontal")
+command! VRunVertical call VRun("vertical")
 command! VCloseResultWindow call VCloseResultWindow()
-
+command! VCloseAllResultWindow call VCloseAllResultWindow()
+command! VGoToEditorWindow call VGoToEditorWindow()
 command! VQuit qa!
-
-":VConnect
