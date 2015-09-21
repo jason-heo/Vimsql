@@ -6,13 +6,15 @@ import os.path
 
 class DBConnInfo:
     connection_name = ""
-    host = ""
-    port = 0
-    user = ""
-    password = ""
-    db_name = ""
+    host            = ""
+    port            = 0
+    user            = ""
+    password        = ""
+    db_name         = ""
+    unix_socket     = ""
 
-    var_names = ["host", "port", "user", "password", "db_name", "connect_timeout"]
+    var_names = ["host", "unix_socket",
+                 "port", "user", "password", "db_name", "connect_timeout"]
 
     def __init__(self, section_name, config):
         for var_name in self.var_names:
@@ -21,7 +23,14 @@ class DBConnInfo:
     
                 self.connection_name = section_name
             except ConfigParser.NoOptionError, e:
-                print ("config parse error: '%s' not found in [%s]") % (var_name, section_name)
+                if (var_name == "unix_socket" \
+                    or var_name == "host" \
+                    or var_name == "port"):
+                # unix socket and tcp info are optional
+                    continue
+
+                print ("config parse error: '%s' not found in [%s]") \
+                       % (var_name, section_name)
                 return None
         
         # convert string into integer: Ex) "3306" => 3306

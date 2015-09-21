@@ -173,12 +173,26 @@ def connect_to_db():
     connection_offset = get_connection_offset()
     conn_info = conn_infos[connection_offset]
     
+    password = conn_info.password
+    
+    if (password == ""):
+        password = get_user_input("Enter Password: ")
+   
     try:
-        db_conn = MySQLdb.connect(host    = conn_info.host,
-                                  port    = int(conn_info.port),
-                                  user    = conn_info.user,
-                                  passwd  = conn_info.password,
-                                  db      = conn_info.db_name,
+        if (conn_info.unix_socket != ""):
+        # connect using unix socket
+            db_conn = MySQLdb.connect(unix_socket = conn_info.unix_socket,
+                                  user        = conn_info.user,
+                                  passwd      = password,
+                                  db          = conn_info.db_name,
+                                  connect_timeout = conn_info.connect_timeout)
+        else:
+        # connect using tcp socket
+            db_conn = MySQLdb.connect(host        = conn_info.host,
+                                  port        = int(conn_info.port),
+                                  user        = conn_info.user,
+                                  passwd      = password,
+                                  db          = conn_info.db_name,
                                   connect_timeout = conn_info.connect_timeout)
         
         cur = db_conn.cursor()
