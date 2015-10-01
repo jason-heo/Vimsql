@@ -1,4 +1,5 @@
-[my_server]
+[connection_name]
+# tcp socket example
 
 host = 127.0.0.1
 port = 3306
@@ -8,9 +9,9 @@ db_name =
 connect_timeout = 0
 
 [your_server]
+# unix_socket example
 
-host = 127.0.0.1
-port = 3306
+unix_socket = /tmp/mysql.sock
 user = root
 password = 
 db_name = 

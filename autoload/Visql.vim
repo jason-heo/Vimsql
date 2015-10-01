@@ -13,7 +13,7 @@ import os
     
 db_conn = None
 run_cnt = 1
-connection_offset = None
+connection_num = None
 conn_infos = None
 
 class SQLRunner(threading.Thread):
@@ -160,7 +160,7 @@ def connect_to_db():
 
     global db_conn
     global conn_infos
-    global connection_offset
+    global connection_num
     
     if confirm_to_close_if_already_connected() == False:
         return
@@ -170,8 +170,8 @@ def connect_to_db():
         # config error
         return
 
-    connection_offset = get_connection_offset()
-    conn_info = conn_infos[connection_offset]
+    connection_num = get_connection_num()
+    conn_info = conn_infos[connection_num]
     
     password = conn_info.password
     
@@ -201,18 +201,18 @@ def connect_to_db():
 
     except MySQLdb.Error, e:
         print_hl_msg("Can't connect: Error %d: %s" % (e.args[0], e.args[1]))
-        connection_offset = None
+        connection_num = None
         db_conn = None
 
 def confirm_to_close_if_already_connected():
-    global connection_offset
+    global connection_num
     global conn_infos
     global db_conn
     
     if db_conn is None:
         return
     
-    conn_info = conn_infos[connection_offset]
+    conn_info = conn_infos[connection_num]
     
     print_hl_msg("Already connected at [{0}] {1}@{2}:{3}".format(conn_info.connection_name, conn_info.user, conn_info.host, conn_info.port))
 
@@ -223,13 +223,17 @@ def confirm_to_close_if_already_connected():
     else:
         return False
 
-def get_connection_offset():
+def get_connection_num():
     global conn_infos
 
     cnt = 1
 
     for conn_info in conn_infos:
-        print "{0}: [{1}] {2}@{3}:{4}".format(cnt, conn_info.connection_name, conn_info.user, conn_info.host, conn_info.port)
+        if (conn_info.unix_socket == None):
+            print "{0}: [{1}] {2}@{3}:{4}".format(cnt, conn_info.connection_name, conn_info.user, conn_info.host, conn_info.port)
+        else:
+            print "{0}: [{1}] {2}@{3}".format(cnt, conn_info.connection_name, conn_info.user, conn_info.unix_socket)
+
         cnt += 1
     
     cnt -= 1
@@ -266,7 +270,7 @@ def close_connection():
     print "Closed"
 
     db_conn = None
-    db_connection_offset = None
+    db_connection_num = None
 
 def get_vim_buffer_content():
 
