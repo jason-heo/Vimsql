@@ -1,6 +1,6 @@
 let s:script_folder_path = escape( expand( '<sfile>:p:h' ), '\' )
 exe 'python sys.path = sys.path + ["' . s:script_folder_path . '"]'
-exe 'python config_path = "' . s:script_folder_path . '/db_connection.conf"'
+exe 'python config_path = "' . s:script_folder_path . '/db_connections.conf"'
 
 python << endPython
 
@@ -40,7 +40,7 @@ class SQLRunner(threading.Thread):
         print "Done.... in %5.4f sec." % (elapsed_time)
     
     def run_and_print(self, sqls, output_mode):
-        if (output_mode == "append"):
+        if (output_mode == "batch"):
             self.create_result_window(":sp")
         
         cnt = 1
@@ -85,7 +85,12 @@ class SQLRunner(threading.Thread):
         import sqlparse
         
         vim.current.buffer.append("Date:  " + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-        vim.current.buffer.append("Query %d: %s" % (cnt, sql))
+        # print parts of query (first 20 characters, last 20 characters)
+
+        vim.current.buffer.append("Query %d: %s ... %s" % (
+                                            cnt,\
+                                            self.get_first_part_of_sql(sql),\
+                                            self.get_last_part_of_sql(sql)))
         
         tokens = sqlparse.parse(sql)
 
@@ -155,7 +160,27 @@ class SQLRunner(threading.Thread):
                 cnt += 1
 
             vim.current.buffer.append(line.replace('\n', '\\n'))
-        
+    
+    def get_first_part_of_sql(self, sql):
+        arr = sql.splitlines()
+        return arr[0][:20]
+
+    def get_last_part_of_sql(self, sql):
+        arr = sql.splitlines()
+        end_offset = len(arr)-1;
+
+        if (end_offset == 0 and len(arr[end_offset]) < 20):
+            # SQL이 1줄 짜리이고, 20자보다 적으면 출력할 게 없다.
+            # first part에서 모두 출력했음
+            return ""
+        elif (end_offset == 0 and len(arr[end_offset]) < 40):
+            # 20 ~ 40자라면 20자 이후 내용 전체 출력
+            return arr[end_offset][20:]
+        else:
+            # 그렇지 않은 경우는 SQL의 마지막 line의 젤 뒤쪽 20자 출력
+            return arr[end_offset][-20:]
+
+
 def connect_to_db():
 
     global db_conn
@@ -229,7 +254,7 @@ def get_connection_num():
     cnt = 1
 
     for conn_info in conn_infos:
-        if (conn_info.unix_socket == None):
+        if (conn_info.unix_socket == ""):
             print "{0}: [{1}] {2}@{3}:{4}".format(cnt, conn_info.connection_name, conn_info.user, conn_info.host, conn_info.port)
         else:
             print "{0}: [{1}] {2}@{3}".format(cnt, conn_info.connection_name, conn_info.user, conn_info.unix_socket)
@@ -402,7 +427,7 @@ endfunction
 command! VConnect call VConnect()
 command! VCloseConnection call VCloseConnection()
 command! VFormat call VFormatSQL()
-command! VRunAppend call VRun("append")
+command! VRunBatch call VRun("batch")
 command! VRunHorizontal call VRun("horizontal")
 command! VRunVertical call VRun("vertical")
 command! VCloseResultWindow call VCloseResultWindow()
