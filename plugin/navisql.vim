@@ -29,7 +29,7 @@ class SQLRunner(threading.Thread):
         import sqlparse; 
         print "Running SQL..."
 
-        buffer = get_vim_buffer_content()
+        buffer = get_queries()
         
         sqls = sqlparse.split(buffer);
         
@@ -297,23 +297,36 @@ def close_connection():
     db_conn = None
     db_connection_num = None
 
-def get_vim_buffer_content():
+def get_queries():
+    
+    queries = get_visual_block()
+    if (queries == None):
+        return get_vim_buffer_content()
+    else:
+        return queries
 
+def get_vim_buffer_content():
+    
     lines = vim.current.buffer
 
     return '\n'.join(lines)
 
-def get_visual_selection():
-    # This codes are from https://github.com/JarrodCTaylor/vim-plugin-starter-kit/wiki/Interactions-with-the-buffer
+def get_visual_block():
+    # Refer to https://github.com/JarrodCTaylor/vim-plugin-starter-kit/wiki/Interactions-with-the-buffer
     buf = vim.current.buffer
-    (starting_line_num, col1) = buf.mark('<')
-    (ending_line_num, col2) = buf.mark('>')
+    
+    if (buf.mark('<') == None):
+        # visual block을 사용하지 않은 경우
+        return None
+
+    (starting_line_num, start_col) = buf.mark('<')
+    (ending_line_num, end_col) = buf.mark('>')
 
     lines = vim.eval('getline({}, {})'.format(starting_line_num, ending_line_num))
-    lines[0] = lines[0][col1:]
-    lines[-1] = lines[-1][:col2 + 1]
-    # return lines, starting_line_num, ending_line_num, col1, col2
-    return "\n".join(lines)
+    lines[0] = lines[0][start_col:]
+    lines[-1] = lines[-1][:end_col + 1]
+    
+    return '\n'.join(lines)
 
 def run_sql(output_mode):
     import sqlparse
@@ -427,9 +440,9 @@ endfunction
 command! VConnect call VConnect()
 command! VCloseConnection call VCloseConnection()
 command! VFormat call VFormatSQL()
-command! VRunBatch call VRun("batch")
-command! VRunHorizontal call VRun("horizontal")
-command! VRunVertical call VRun("vertical")
+command! -range=% VRunBatch call VRun("batch")
+command! -range=% VRunHorizontal call VRun("horizontal")
+command! -range=% VRunVertical call VRun("vertical")
 command! VCloseResultWindow call VCloseResultWindow()
 command! VCloseAllResultWindow call VCloseAllResultWindow()
 command! VGoToEditorWindow call VGoToEditorWindow()
