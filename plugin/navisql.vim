@@ -45,6 +45,9 @@ class SQLRunner(threading.Thread):
         
         cnt = 1
         for sql in sqls:
+            if (sql == ""):
+                continue
+
             start = time.time();
             cursor = db_helper.run_sql_at_db(sql, self.db_conn)
 
@@ -60,7 +63,11 @@ class SQLRunner(threading.Thread):
             if (output_mode == "horizontal"):
                 self.create_result_window(":sp")
             elif (output_mode == "vertical"):
-                self.create_result_window(":vs")
+                if (len(vim.windows) == 1):
+                    # vertical이더라도 첫 번재 윈도는 sp로 해야보기 좋다.
+                    self.create_result_window(":sp")
+                else:
+                    self.create_result_window(":vs")
 
             self.print_sql_result(cnt, sql, elapsed_time, cursor)
             cnt += 1
