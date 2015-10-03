@@ -11,7 +11,7 @@ Installation
 Prerequisite
 ------------
 
-Navisql requires Vim 7.4. Navisql uses two python libraries, `[MySQLdb][1]` and `[sqlparse][2]`.
+Navisql requires Vim 7.4. Navisql uses two python libraries, [`MySQLdb`][1] and [`sqlparse`][2].
 
 ### installing `MySQLdb`
 
