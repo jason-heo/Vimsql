@@ -5,6 +5,10 @@ Navisql is a Vim Plugin developed with Python 2. Using Navisql, you can edit SQL
 
 Navisql은 Python 2로 개발된 Vim plugin입니다. Navisql을 이용하여 Vim 안에서 SQL을 편집하고, 실행한 뒤 결과를 확인할 수 있습니다.
 
+Screenshots
+===========
+<iframe width="420" height="315" src="https://www.youtube.com/embed/6ovYivP-O0U" frameborder="0" allowfullscreen></iframe>
+
 Installation
 ============
 
