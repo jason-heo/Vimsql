@@ -1,13 +1,14 @@
 Introduction
 ============
 
-Navisql is a Vim Plugin developed with Python 2. Using Navisql, you can edit SQL, run SQL, view results in Vim.
+Navisql is a Vim Plugin developed with Python 2. Using Navisql, you can edit SQL, run SQL, view results in Vim. Currently, only MySQL is supported.
 
-Navisql은 Python 2로 개발된 Vim plugin입니다. Navisql을 이용하여 Vim 안에서 SQL을 편집하고, 실행한 뒤 결과를 확인할 수 있습니다.
+Navisql은 Python 2로 개발된 Vim plugin입니다. Navisql을 이용하여 Vim 안에서 SQL을 편집하고, 실행한 뒤 결과를 확인할 수 있습니다. 현재는 MySQL만 지원하고 있습니다.
 
 Screenshots
 ===========
 [![Navisql Screenshot](http://img.youtube.com/vi/6ovYivP-O0U/0.jpg)](http://www.youtube.com/watch?v=6ovYivP-O0U)
+Click above image to play a youtube video.
 
 Installation
 ============
@@ -123,51 +124,32 @@ db_name =
 connect_timeout = 0
 ```
 
-:VConnect
----------
-
-:VFormat
+Commands
 --------
 
-:VRunHorizontal
----------------
+|Command|Explanation|
+|-------|------------|
+|`:VConnect`|Connect to MySQL Server|
+|`:VFormat`|Pretty Printer|
+|`:VRunHorizontal`|Run SQLs and print each result in horizontally split windows|
+|`:VRunVertical`|Run SQLs and print each result in vertically split windows|
+|`:VRunBatch`|Run SQLs and print all result in one windows|
+|`:VCloseResultWindow`|Close current Result Window|
+|`:VCloseAllResultWindows`|Close all Result Windows|
+|`:VGoToEditorWindow`|Go to Editor Window|
+|`:VClose`|Close MySQL Connection|
+|`:VQuit`|Close all vim windows and exit Vim|
 
-:VRunVertical
--------------
-
-:VRunBatch
-----------
-
-Navigating Result Windows
+Navigating Windows
 -------------------------
 
-Result Windows are just a split windows. So you can move around any windows using vim's windows command. For example, \[C-w][C-w] move to next split window.
-
-Running visually selected queries
----------------------------------
-
-:VCloseResultWindow
--------------------
-
-:VCloseAllResultWindows
------------------------
-
-:VGoToEditorWindow
-------------------
-
-:VClose
--------
-
-:VQuit
-------
-
-Close all vim windows and exit Vim.
+Result Windows are just a split windows. So you can move around any windows using vim's windows command. For example, execute \[C-w][C-w] so that you move to next split window.
 
 Known Issues
 ============
 
-- Block된다
-- new line은 '\n'으로 replace된다
+- While Queries are executing, vim will be blocked. The only way to interrupt execution is killing vim (`$ kill -9 <pid>`). Please note that even though vim is killed, the executing query runs in MySQL server.
+- If column has a new line, it will be replaced `\n` in the Result Window.
 
 Future work
 ===========
