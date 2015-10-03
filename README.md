@@ -8,6 +8,7 @@ Navisql은 Python 2로 개발된 Vim plugin입니다. Navisql을 이용하여 Vi
 Screenshots
 ===========
 [![Navisql Screenshot](http://img.youtube.com/vi/6ovYivP-O0U/0.jpg)](http://www.youtube.com/watch?v=6ovYivP-O0U)
+
 Click above image to play a youtube video.
 
 Installation
