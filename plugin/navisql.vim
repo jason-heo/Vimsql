@@ -353,7 +353,7 @@ def run_sql(output_mode):
 def go_to_editor_window():
     vim.command(":wincmd t") # move to the first window
 
-def close_all_result_window():
+def close_all_result_windows():
     go_to_last_window()
 
     while (len(vim.windows) > 1):
@@ -433,8 +433,8 @@ function! VGoToEditorWindow()
     py go_to_editor_window()
 endfunction
 
-function! VCloseAllResultWindow()
-    py close_all_result_window()
+function! VCloseAllResultWindows()
+    py close_all_result_windows()
 endfunction
 
 command! VConnect call VConnect()
@@ -444,6 +444,6 @@ command! -range=% VRunBatch call VRun("batch")
 command! -range=% VRunHorizontal call VRun("horizontal")
 command! -range=% VRunVertical call VRun("vertical")
 command! VCloseResultWindow call VCloseResultWindow()
-command! VCloseAllResultWindow call VCloseAllResultWindow()
+command! VCloseAllResultWindows call VCloseAllResultWindows()
 command! VGoToEditorWindow call VGoToEditorWindow()
 command! VQuit qa!
