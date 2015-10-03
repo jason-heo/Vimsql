@@ -56,7 +56,7 @@ $ git clone https://github.com/mysqlguru/Navisql.git
 1. open new vim
 1. run `:PluginInstall`
 
-To verify successfully installed, check `~/.vim/bundle/Navisql/` out.
+To verify successfully installed, check `~/.vim/bundle/Navisql/` exists.
 
 ### with other package managers
 
@@ -87,7 +87,7 @@ Configuring DB connection information
 The first thing you need to do is configuring DB connection information. To do that, edit ~/.vim/bundle/plugin/db_connections.conf` like this:
 
 ```
-$ cd ~/.vim/bundle/plugin/
+$ cd ~/.vim/bundle/Navisql/plugin/
 $ cp db_connections.conf.example db_connections.conf
 ```
 
