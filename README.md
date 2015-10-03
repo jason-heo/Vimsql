@@ -1,3 +1,11 @@
+Disclaimer
+==========
+
+Please note that Navisql is a premature plugin and it might have many bugs. Be careful when executing `INSERT`/`UPDATE`/`DELETE`/`ALTER` etc.
+
+Navisql은 아직 만들어진지 얼마 안 되는 plugin이며 버그가 있을 수 있습니다. `INSERT`/`UPDATE`/`DELETE`/`ALTER` 등의 쿼리를 수행할 때는 주의하세요.
+
+
 Introduction
 ============
 
