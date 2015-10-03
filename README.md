@@ -53,7 +53,7 @@ $ git clone https://github.com/mysqlguru/Navisql.git
 
 [`pathogen`][5]은 엄밀히 말하자면 패키지 매니저는 아니지만, Plugin 설치를 쉽게 도와줍니다. 이미 `pathogen`을 사용하는 분이라면 위의 방법으로 설치하면되지만, 가급적 아래에 있는 `Vundle`을 이용하기길 추천합니다.
 
-### with Vundle
+### with `Vundle`
 
 [`Vundle`][6] is a great vim package manager. Visit [Vundle's homepage][6] to get and install `Vundle`. After installing `Vundle`, Navisql could be installed like this:
 
@@ -158,7 +158,7 @@ Future work
 If possible, I would like to implement:
 
 1. Auto Completion
-1. Modify, Update data in Result Window
+1. Edit your data in Vim's Result Window after SELECT as you do with GUIs (like Navicat or SQLYog.)
 
 Please star this project in github if you want these features. I'm highly anticipating your contribution.
 
