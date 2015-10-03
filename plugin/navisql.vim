@@ -40,9 +40,6 @@ class SQLRunner(threading.Thread):
         print "Done.... in %5.4f sec." % (elapsed_time)
     
     def run_and_print(self, sqls, output_mode):
-        if (output_mode == "batch"):
-            self.create_result_window(":sp")
-        
         cnt = 1
         for sql in sqls:
             if (sql == ""):
@@ -56,6 +53,9 @@ class SQLRunner(threading.Thread):
                 if (len(sqls) > 1):
                     print_hl_msg("Skip remained queries")
                 return
+
+            if (cnt == 1 and output_mode == "batch"):
+                self.create_result_window(":sp")
 
             elapsed_time = time.time() - start
 
