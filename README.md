@@ -1,21 +1,21 @@
 Disclaimer
 ==========
 
-Please note that Navisql is a premature plugin and it might have many bugs. Be careful when executing `INSERT`/`UPDATE`/`DELETE`/`ALTER` etc.
+Please note that Vimsql is a premature plugin and it might have many bugs. Be careful when executing `INSERT`/`UPDATE`/`DELETE`/`ALTER` etc.
 
-Navisql은 아직 만들어진지 얼마 안 되는 plugin이며 버그가 있을 수 있습니다. `INSERT`/`UPDATE`/`DELETE`/`ALTER` 등의 쿼리를 수행할 때는 주의하세요.
+Vimsql은 아직 만들어진지 얼마 안 되는 plugin이며 버그가 있을 수 있습니다. `INSERT`/`UPDATE`/`DELETE`/`ALTER` 등의 쿼리를 수행할 때는 주의하세요.
 
 
 Introduction
 ============
 
-Navisql is a Vim Plugin developed with Python 2. Using Navisql, you can edit SQL, run SQL, view results in Vim. Currently, only MySQL is supported.
+Vimsql is a Vim Plugin developed with Python 2. Using Vimsql, you can edit SQL, run SQL, view results in Vim. Currently, only MySQL is supported.
 
-Navisql은 Python 2로 개발된 Vim plugin입니다. Navisql을 이용하여 Vim 안에서 SQL을 편집하고, 실행한 뒤 결과를 확인할 수 있습니다. 현재는 MySQL만 지원하고 있습니다.
+Vimsql은 Python 2로 개발된 Vim plugin입니다. Vimsql을 이용하여 Vim 안에서 SQL을 편집하고, 실행한 뒤 결과를 확인할 수 있습니다. 현재는 MySQL만 지원하고 있습니다.
 
 Screenshots
 ===========
-[![Navisql Screenshot](http://img.youtube.com/vi/6ovYivP-O0U/0.jpg)](http://www.youtube.com/watch?v=6ovYivP-O0U)
+[![Vimsql Screenshot](http://img.youtube.com/vi/6ovYivP-O0U/0.jpg)](http://www.youtube.com/watch?v=6ovYivP-O0U)
 
 Click above image to play a youtube video.
 
@@ -25,7 +25,7 @@ Installation
 Prerequisite
 ------------
 
-Navisql requires Vim 7.4. In addition, Navisql uses two python libraries, [`MySQLdb`][1] and [`sqlparse`][2]. You should install these two libraries before use Navisql.
+Vimsql requires Vim 7.4. In addition, Vimsql uses two python libraries, [`MySQLdb`][1] and [`sqlparse`][2]. You should install these two libraries before use Vimsql.
 
 ### installing `MySQLdb`
 
@@ -43,34 +43,34 @@ If you have any problems when installing, visit [this web page][3]. MySQLdb is l
 $ pip install sqlparse
 ```
 
-Installing Navisql
+Installing Vimsql
 ------------------
 
-Installing Navisql depends on your vim package manager.
+Installing Vimsql depends on your vim package manager.
 
-Navisql을 설치하는 방법은 각자 사용하는 패키지 매니저에 따라 다릅니다. 초보자의 경우 [`Vundle`][6]이라는 것을 사용해보시길 추천합니다. Vim plugin을 만들면서 제일 고생했던 부분이 Package Manager에 대한 개념을 잡는 일이었습니다. KLDP에 [훌륭한 강좌][7]가 올라와 있으므로 꼭 읽어보시기 바랍니다.
+Vimsql을 설치하는 방법은 각자 사용하는 패키지 매니저에 따라 다릅니다. 초보자의 경우 [`Vundle`][6]이라는 것을 사용해보시길 추천합니다. Vim plugin을 만들면서 제일 고생했던 부분이 Package Manager에 대한 개념을 잡는 일이었습니다. KLDP에 [훌륭한 강좌][7]가 올라와 있으므로 꼭 읽어보시기 바랍니다.
 
 ### with `pathogen`
 
-Actually, [`pathogen`][5] is not a vim package manager but the Runtime Path Manipulator. Anyway Navisql can be installed like below if your are using `pathogen`
+Actually, [`pathogen`][5] is not a vim package manager but the Runtime Path Manipulator. Anyway Vimsql can be installed like below if your are using `pathogen`
 
 ```
 $ cd ~/.vim/bundle/
-$ git clone https://github.com/mysqlguru/Navisql.git
+$ git clone https://github.com/mysqlguru/Vimsql.git
 ```
 
 [`pathogen`][5]은 엄밀히 말하자면 패키지 매니저는 아니지만, Plugin 설치를 쉽게 도와줍니다. 이미 `pathogen`을 사용하는 분이라면 위의 방법으로 설치하면되지만, 가급적 아래에 있는 `Vundle`을 이용하기길 추천합니다.
 
 ### with `Vundle`
 
-[`Vundle`][6] is a great vim package manager. Visit [Vundle's homepage][6] to get and install `Vundle`. After installing `Vundle`, Navisql could be installed like this:
+[`Vundle`][6] is a great vim package manager. Visit [Vundle's homepage][6] to get and install `Vundle`. After installing `Vundle`, Vimsql could be installed like this:
 
-1. Add `mysqlguru/Navisql` between `call vundle#begin()` and `call vundle#end()` in your `.vimrc`
+1. Add `mysqlguru/Vimsql` between `call vundle#begin()` and `call vundle#end()` in your `.vimrc`
 1. Save `.vimrc`
 1. open new vim
 1. run `:PluginInstall`
 
-To verify successfully installed, check `~/.vim/bundle/Navisql/` exists.
+To verify successfully installed, check `~/.vim/bundle/Vimsql/` exists.
 
 ### with other package managers
 
@@ -101,7 +101,7 @@ Configuring DB connection information
 The first thing you need to do is configuring DB connection information. To do that, edit ~/.vim/bundle/plugin/db_connections.conf` like this:
 
 ```
-$ cd ~/.vim/bundle/Navisql/plugin/
+$ cd ~/.vim/bundle/Vimsql/plugin/
 $ cp db_connections.conf.example db_connections.conf
 ```
 
@@ -118,7 +118,7 @@ user = root
 
 # You will be asked for the password, if password is not given
 password = 
-db_name =  jsheo
+db_name =  your_db_name
 connect_timeout = 2
 
 [real_server]
