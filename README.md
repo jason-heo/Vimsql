@@ -9,9 +9,9 @@ Vimsql은 아직 만들어진지 얼마 안 되는 plugin이며 버그가 있을
 Introduction
 ============
 
-Vimsql is a Vim Plugin developed with Python 2. Using Vimsql, you can edit SQL, run SQL, view results in Vim. Currently, only MySQL is supported.
+Vimsql is a Vim Plugin developed with Python 2. Using Vimsql, you can edit SQL, run SQL, view results in Vim. Currently, only MySQL is supported. You can pronounce `Vimsql` as `vims-kju-el` (not `Vim-es-kju-el`)
 
-Vimsql은 Python 2로 개발된 Vim plugin입니다. Vimsql을 이용하여 Vim 안에서 SQL을 편집하고, 실행한 뒤 결과를 확인할 수 있습니다. 현재는 MySQL만 지원하고 있습니다.
+Vimsql은 Python 2로 개발된 Vim plugin입니다. Vimsql을 이용하여 Vim 안에서 SQL을 편집하고, 실행한 뒤 결과를 확인할 수 있습니다. 현재는 MySQL만 지원하고 있습니다. 발음은 `빔스큐엘`이라고 발음하시면 됩니다.
 
 Screenshots
 ===========
@@ -160,6 +160,37 @@ Known Issues
 - While Queries are executing, vim will be blocked. The only way to interrupt execution is killing vim (`$ kill -9 <pid>`). Please note that even though vim is killed, the executing query runs in MySQL server.
 - If column has a new line, it will be replaced `\n` in the Result Window.
 
+Related Works
+=============
+
+dbext
+-----
+[dbext][8] has been developed over 10 years ago.
+
+### pros
+
+It supports many exsting databases. dbext can executing queries in your programming codes. For example, if your program has following code:
+
+```
+string sql = "SELECT s.script, ts.event, t.name , s.script_language, sv.name 
+             FROM ml_script s, ml_table_script ts, ml_table t,
+                         ml_script_version sv 
+             WHERE s.script_id   = " + script_version + " 
+                 AND ts.version_id = " + obj.method() + " 
+                 AND ts.table_id   = t.table_id"
+```
+
+when you execute above query, dbext will prompt you for `version_id` and `table_id`.  Yes, dbext is powerful!
+
+dbext supports many programming languages including java, C++.
+
+### cons
+
+Assuming you are using MySQL. Each time you execute queries using dbext, `mysql` (MySQL's client program) is invoked and vim buffer is redirected to `mysql`. Finally `mysql`'s output is appended in vim. In this approach, a transaction is only affected each execution. Fortunately, you can use dbext with `Perl DBI`. But it was slower than Python's `MySQLdb`.
+dbext is written in Perl. I'm new to both Perl and Python. Personally, Python was easy to read for me.
+
+Compared to dbext, Vimsql only supports MySQL and static queries. Please note that Vimsql is a only 2 month old tool.
+
 Future work
 ===========
 
@@ -169,6 +200,7 @@ If possible, I would like to implement:
 1. Edit your data in Vim's Result Window after SELECT as you do with GUIs (like Navicat or SQLYog.)
 
 Please star this project in github if you want these features. I'm highly anticipating your contribution.
+
 
 [1]: http://mysql-python.sourceforge.net/MySQLdb.html
 [2]: https://github.com/andialbrecht/sqlparse
