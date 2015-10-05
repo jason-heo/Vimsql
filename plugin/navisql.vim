@@ -39,6 +39,10 @@ class SQLRunner(threading.Thread):
         self.run_and_print(sqls, self.output_mode)
         elapsed_time = time.time() - start
 
+        # delete previously selected marks.
+        vim.command(":delmarks <")
+        vim.command(":delmarks >")
+
         print "Done.... in %5.4f sec." % (elapsed_time)
     
     def run_and_print(self, sqls, output_mode):
@@ -61,7 +65,6 @@ class SQLRunner(threading.Thread):
 
             elapsed_time = time.time() - start
 
-            
             if (output_mode == "horizontal"):
                 self.create_result_window(":sp")
             elif (output_mode == "vertical"):
@@ -96,13 +99,8 @@ class SQLRunner(threading.Thread):
         vim.current.buffer.append("Date:  " + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
         # print parts of query (first 20 characters, last 20 characters)
         
-        if (len(sql) < 20):
-            vim.current.buffer.append(sql)
-        else:
-            vim.current.buffer.append("Query %d: %s ... %s" % (
-                                                cnt,\
-                                                self.get_first_part_of_sql(sql),\
-                                                self.get_last_part_of_sql(sql)))
+        # print substring of sql out into Result Window
+        self.print_sql_into_res_window(cnt, sql)
         
         tokens = sqlparse.parse(sql)
 
@@ -173,25 +171,26 @@ class SQLRunner(threading.Thread):
 
             vim.current.buffer.append(line.replace('\n', '\\n'))
     
-    def get_first_part_of_sql(self, sql):
-        arr = sql.splitlines()
-        return arr[0][:20]
 
-    def get_last_part_of_sql(self, sql):
-        arr = sql.splitlines()
-        end_offset = len(arr)-1;
+    # strip each line
+    def print_sql_into_res_window(self, cnt, input_sql):
+        arr = input_sql.splitlines()
+        # input_sql = '  SELECT   \n  col1  \n'
+        # arr       = ['   SELECT    ', '   col1  ']
+        arr2 = []
+        for line in arr:
+            arr2.append(line.strip())
+        
+        # arr2 = ['SELECT', 'col1']
+        input_sql = ' '.join(arr2)
 
-        if (end_offset == 0 and len(arr[end_offset]) < 20):
-            # SQL이 1줄 짜리이고, 20자보다 적으면 출력할 게 없다.
-            # first part에서 모두 출력했음
-            return ""
-        elif (end_offset == 0 and len(arr[end_offset]) < 40):
-            # 20 ~ 40자라면 20자 이후 내용 전체 출력
-            return arr[end_offset][20:]
+        # input_sql = 'SELECT COL1'
+
+        if (len(input_sql) < 40):
+            vim.current.buffer.append(input_sql)
         else:
-            # 그렇지 않은 경우는 SQL의 마지막 line의 젤 뒤쪽 20자 출력
-            return arr[end_offset][-20:]
-
+            vim.current.buffer.append("Query %d: %s ... %s" %
+                                    (cnt, input_sql[:20], input_sql[-20:]))
 
 def connect_to_db():
 
@@ -327,16 +326,17 @@ def get_vim_buffer_content():
 
 def get_visual_block():
     # Refer to https://github.com/JarrodCTaylor/vim-plugin-starter-kit/wiki/Interactions-with-the-buffer
+
     buf = vim.current.buffer
     
     if (buf.mark('<') == None):
         # visual block을 사용하지 않은 경우
         return None
-
+    
     (starting_line_num, start_col) = buf.mark('<')
     (ending_line_num, end_col) = buf.mark('>')
 
-    lines = vim.eval('getline({}, {})'.format(starting_line_num, ending_line_num))
+    lines = vim.eval('getline({0}, {1})'.format(starting_line_num, ending_line_num))
     lines[0] = lines[0][start_col:]
     lines[-1] = lines[-1][:end_col + 1]
     
