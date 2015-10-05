@@ -4,6 +4,8 @@ exe 'python config_path = "' . s:script_folder_path . '/db_connections.conf"'
 
 python << endPython
 
+#-*- coding: utf-8 -*-
+
 import db_helper
 import vim
 import MySQLdb
@@ -93,11 +95,14 @@ class SQLRunner(threading.Thread):
         
         vim.current.buffer.append("Date:  " + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
         # print parts of query (first 20 characters, last 20 characters)
-
-        vim.current.buffer.append("Query %d: %s ... %s" % (
-                                            cnt,\
-                                            self.get_first_part_of_sql(sql),\
-                                            self.get_last_part_of_sql(sql)))
+        
+        if (len(sql) < 20):
+            vim.current.buffer.append(sql)
+        else:
+            vim.current.buffer.append("Query %d: %s ... %s" % (
+                                                cnt,\
+                                                self.get_first_part_of_sql(sql),\
+                                                self.get_last_part_of_sql(sql)))
         
         tokens = sqlparse.parse(sql)
 
@@ -217,7 +222,8 @@ def connect_to_db():
                                   user        = conn_info.user,
                                   passwd      = password,
                                   db          = conn_info.db_name,
-                                  connect_timeout = conn_info.connect_timeout)
+                                  connect_timeout = conn_info.connect_timeout,
+                                  charset     = "utf8")
         else:
         # connect using tcp socket
             db_conn = MySQLdb.connect(host        = conn_info.host,
@@ -225,7 +231,8 @@ def connect_to_db():
                                   user        = conn_info.user,
                                   passwd      = password,
                                   db          = conn_info.db_name,
-                                  connect_timeout = conn_info.connect_timeout)
+                                  connect_timeout = conn_info.connect_timeout,
+                                  charset     = "utf8")
         
         cur = db_conn.cursor()
         cur.execute("SET autocommit = ON")
