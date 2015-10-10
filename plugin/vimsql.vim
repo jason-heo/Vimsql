@@ -21,27 +21,22 @@ conn_infos = None
 class SQLRunner(threading.Thread):
     counter = 1
 
-    def __init__(self, name, db_conn, output_mode):
+    def __init__(self, name, db_conn, vim_buffer, output_mode):
         threading.Thread.__init__(self)
         self.name = name
         self.db_conn = db_conn
+        self.vim_buffer = vim_buffer
         self.output_mode = output_mode
 
     def run(self):
         import sqlparse; 
         print "Running SQL..."
-
-        buffer = get_queries()
         
-        sqls = sqlparse.split(buffer);
+        sqls = sqlparse.split(self.vim_buffer);
         
         start = time.time();
         self.run_and_print(sqls, self.output_mode)
         elapsed_time = time.time() - start
-
-        # delete previously selected marks.
-        vim.command(":delmarks <")
-        vim.command(":delmarks >")
 
         print "Done.... in %5.4f sec." % (elapsed_time)
     
@@ -310,13 +305,11 @@ def close_connection():
     db_conn = None
     db_connection_num = None
 
-def get_queries():
-    
-    queries = get_visual_block()
-    if (queries == None):
-        return get_vim_buffer_content()
+def get_queries(visual_mode):
+    if (visual_mode == "visual"):
+        return get_visual_block()
     else:
-        return queries
+        return get_vim_buffer_content()
 
 def get_vim_buffer_content():
     
@@ -342,7 +335,7 @@ def get_visual_block():
     
     return '\n'.join(lines)
 
-def run_sql(output_mode):
+def run_sql(output_mode, visual_mode):
     import sqlparse
 
     global run_cnt
@@ -357,7 +350,9 @@ def run_sql(output_mode):
     if (db_conn is None):
         connect_to_db()
 
-    runner_thread = SQLRunner("runner", db_conn, output_mode)
+    vim_buffer = get_queries(visual_mode)
+
+    runner_thread = SQLRunner("runner", db_conn, vim_buffer, output_mode)
 
     runner_thread.start()
     runner_thread.join()
@@ -434,9 +429,10 @@ function! VFormatSQL() range
     py format_sql(sql)
 endfunction " end of FormatSQL()
 
-function! VRun(output_mode) range
+function! VRun(output_mode, visual_mode) range
     py output_mode = vim.eval("a:output_mode")
-    py run_sql(output_mode)
+    py visual_mode = vim.eval("a:visual_mode")
+    py run_sql(output_mode, visual_mode)
 endfunction " end of RunSQL()
 
 function! VCloseResultWindow()
@@ -454,9 +450,12 @@ endfunction
 command! VConnect call VConnect()
 command! VCloseConnection call VCloseConnection()
 command! VFormat call VFormatSQL()
-command! -range=% VRunBatch call VRun("batch")
-command! -range=% VRunHorizontal call VRun("horizontal")
-command! -range=% VRunVertical call VRun("vertical")
+command! VRunBatch call VRun("batch", "not_visual")
+command! VRunHorizontal call VRun("horizontal", "not_visual")
+command! VRunVertical call VRun("vertical", "not_visual")
+command! -range=% VVRunBatch call VRun("batch", "visual")
+command! -range=% VVRunHorizontal call VRun("horizontal", "visual")
+command! -range=% VVRunVertical call VRun("vertical", "visual")
 command! VCloseResultWindow call VCloseResultWindow()
 command! VCloseAllResultWindows call VCloseAllResultWindows()
 command! VGoToEditorWindow call VGoToEditorWindow()
